@@ -1,65 +1,61 @@
-# Example Voting App
+# Example Voting App through GCP kubernetes cluster
 
-A simple distributed application running across multiple Docker containers.
+This project uses Python, Node.js, .NET, with Redis for messaging and Postgres for storage.
 
-## Getting started
 
-Download [Docker Desktop](https://www.docker.com/products/docker-desktop) for Mac or Windows. [Docker Compose](https://docs.docker.com/compose) will be automatically installed. On Linux, make sure you have the latest version of [Compose](https://docs.docker.com/compose/install/).
 
-This solution uses Python, Node.js, .NET, with Redis for messaging and Postgres for storage.
+ vote service will be run on port http://xx.xx.xx.xx:8080, and the `results` will be on http://xx.xx.xx.xx:8081 using ingress 
 
-Run in this directory to build and run the app:
 
-```shell
-docker compose up
-```
+## Run the app services in google cloud Kubernetes cluster:
 
-The `vote` app will be running at [http://localhost:8080](http://localhost:8080), and the `results` will be at [http://localhost:8081](http://localhost:8081).
-
-Alternately, if you want to run it on a [Docker Swarm](https://docs.docker.com/engine/swarm/), first make sure you have a swarm. If you don't, run:
-
-```shell
-docker swarm init
-```
-
-Once you have your swarm, in this directory run:
-
-```shell
-docker stack deploy --compose-file docker-stack.yml vote
-```
-
-## Run the app in Kubernetes
+created Kubernetes cluster on GCP through standard configuration rather than autopilot
+configured 2 nodes only as it was a free tier account
+installed and logged into GCP cli through local host,
+and navigated to projects list and set up the kubernetes cluster 
+cloned the repository into local -> cd into the repository
 
 The folder k8s-specifications contains the YAML specifications of the Voting App's services.
+run the Kubectl apply -f k8s-specifications/ 
+ALL THE K8S MANIFEST FILES HAS BEEN DEPLOYED
+VERIFY THE ALL SERVICES THROUGH RUNNING Kubectl get all
 
-Run the following command to create the deployments and services. Note it will create these resources in your current namespace (`default` if you haven't changed it.)
+<img width="865" height="447" alt="image" src="https://github.com/user-attachments/assets/e877155c-e92b-45f1-ab31-9469d6f93721" />
 
-```shell
-kubectl create -f k8s-specifications/
-```
+Expose the application voting service using INGRESS
 
-The `vote` web app is then available on port 31000 on each host of the cluster, the `result` web app is available on port 31001.
+kubectl create namespace ingress-nginx
 
-To remove them, run:
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+helm install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx \
+  --set controller.service.type=LoadBalancer
 
-```shell
-kubectl delete -f k8s-specifications/
-```
+voting-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vote-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: vote
+            port:
+              number: 8080
 
-## Architecture
+and access vote service through ingress loadbalancer ip address
 
-![Architecture diagram](architecture.excalidraw.png)
+  <img width="1258" height="553" alt="image" src="https://github.com/user-attachments/assets/7192ff21-94f9-40db-bf3e-064b20827a3f" />
 
-* A front-end web app in [Python](/vote) which lets you vote between two options
-* A [Redis](https://hub.docker.com/_/redis/) which collects new votes
-* A [.NET](/worker/) worker which consumes votes and stores them in…
-* A [Postgres](https://hub.docker.com/_/postgres/) database backed by a Docker volume
-* A [Node.js](/result) web app which shows the results of the voting in real time
 
-## Notes
+Note: Results application cannot be exposed to public so we are accessing it through nodeport or kubectl portforward svc/result 8081:8081 on your browser.
 
-The voting application only accepts one vote per client browser. It does not register additional votes if a vote has already been submitted from a client.
 
-This isn't an example of a properly architected perfectly designed distributed app... it's just a simple
-example of the various types of pieces and languages you might see (queues, persistent data, etc), and how to
-deal with them in Docker at a basic level.
+
