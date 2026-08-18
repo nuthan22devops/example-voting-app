@@ -1,4 +1,4 @@
-# Example Voting App through GCP kubernetes cluster
+# Voting App through GCP kubernetes cluster
 
 This project uses Python, Node.js, .NET, with Redis for messaging and Postgres for storage.
 KB
